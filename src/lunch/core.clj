@@ -1,8 +1,7 @@
 (ns lunch.core
   (:require
    [clojure.core.async :refer [<!!]]
-   [datomic.api :as datomic]
-   [datomic.client :as client]))
+   [datomic.api :as datomic]))
 
 (comment
 

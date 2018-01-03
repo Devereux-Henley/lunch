@@ -4,7 +4,6 @@
 
   :dependencies [
                  [org.clojure/clojure "1.9.0"]
-                 [com.datomic/clj-client "0.8.606"]
                  [com.datomic/datomic-free "0.9.5656"]
                  [org.clojure/core.async "0.3.465"]
                  ])
