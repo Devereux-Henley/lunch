@@ -19,6 +19,7 @@
 
   @(datomic/transact conn [{:db/ident       :requirement/name
                             :db/valueType   :db.type/string
+                            :db/unique      :db.unique/value
                             :db/cardinality :db.cardinality/one
                             :db/doc         "The name of a requirement."}
                            {:db/ident       :requirement/description
@@ -52,6 +53,40 @@
         [?child :requirement/name ?child-name] ;; Find child relations such that the name is the name we are searching for.
         [?requirement :requirement/children ?child]] ;; Assert that the children we are looking for are the children of the previously selected requirement.
       db))
+
+  "Attributes are attached to entities, represented by a unique identifier"
+  (def requirement-entity
+    (let [db (datomic/db conn)]
+      (datomic/q
+        '[:find ?requirement-entity .
+          :in $
+          :where [?requirement-entity :requirement/name "ATG001"]]
+        db)))
+
+  "Graphs support free association"
+  @(datomic/transact conn [{:db/ident :requirement/priority
+                            :db/valueType :db.type/ref
+                            :db/cardinality :db.cardinality/one
+                            :db/doc "Priority that a requirement is met."}
+                           {:db/ident :priority/high}
+                           {:db/ident :priority/medium}
+                           {:db/ident :priority/low}])
+
+  @(datomic/transact conn [{:db/id requirement-entity
+                            :requirement/priority :priority/high}])
+
+  @(datomic/transact conn [[:db/add [:requirement/name "ATG001"] :requirement/priority :priority/low]])
+
+  (let [db (datomic/db conn)]
+    (datomic/q '[:find [?requirement-name ?requirement-priority]
+                 :in $ ?requirement-entity
+                 :where
+                 [?requirement-entity :requirement/name ?requirement-name]
+                 [?priority-entity :db/ident ?requirement-priority]
+                 [?requirement-entity :requirement/priority ?priority-entity]]
+      db
+      requirement-entity))
+
   )
 
 (defonce database-uri

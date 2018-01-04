@@ -1,0 +1,1 @@
+docker run -d -p 4334-4336:4334-4336 --name datomic-free akiel/datomic-free
