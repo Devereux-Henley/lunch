@@ -49,18 +49,18 @@
       '[:find ?child-name
         :in $
         :where
-        [?requirement :requirement/name "ATG001"] ;; Find a requirement such that the name == "ATG001"
-        [?child :requirement/name ?child-name] ;; Find child relations such that the name is the name we are searching for.
+        [?requirement :requirement/name "ATG001"]    ;; Find a requirement such that the name == "ATG001"
+        [?child :requirement/name ?child-name]       ;; Find child relations such that the name is the name we are searching for.
         [?requirement :requirement/children ?child]] ;; Assert that the children we are looking for are the children of the previously selected requirement.
       db))
 
   "Attributes are attached to entities, represented by a unique identifier"
-  (def requirement-entity
+  (def requirement-entity-id
     (let [db (datomic/db conn)]
       (datomic/q
-        '[:find ?requirement-entity .
+        '[:find ?requirement-entity-id .
           :in $
-          :where [?requirement-entity :requirement/name "ATG001"]]
+          :where [?requirement-entity-id :requirement/name "ATG001"]]
         db)))
 
   "Graphs support free association"
@@ -72,21 +72,39 @@
                            {:db/ident :priority/medium}
                            {:db/ident :priority/low}])
 
-  @(datomic/transact conn [{:db/id requirement-entity
+  @(datomic/transact conn [{:db/id requirement-entity-id
                             :requirement/priority :priority/high}])
 
   @(datomic/transact conn [[:db/add [:requirement/name "ATG001"] :requirement/priority :priority/low]])
 
   (let [db (datomic/db conn)]
     (datomic/q '[:find [?requirement-name ?requirement-priority]
-                 :in $ ?requirement-entity
+                 :in $ ?requirement-entity-id
                  :where
-                 [?requirement-entity :requirement/name ?requirement-name]
+                 [?requirement-entity-id :requirement/name ?requirement-name]
                  [?priority-entity :db/ident ?requirement-priority]
-                 [?requirement-entity :requirement/priority ?priority-entity]]
+                 [?requirement-entity-id :requirement/priority ?priority-entity]]
       db
-      requirement-entity))
+      requirement-entity-id))
 
+  "Pull API => declarative graph queries"
+
+  (let [db (datomic/db conn)]
+    (datomic/pull db [{:requirement/children [:requirement/name :requirement/priority]}] requirement-entity-id))
+
+  "Entity API => ORM equivalent"
+
+  (def requirement-entity
+    (let [db (datomic/db conn)]
+      (datomic/entity db requirement-entity-id)))
+
+  requirement-entity
+
+  (:requirement/name requirement-entity)
+
+  (:requirement/priority requirement-entity)
+
+  requirement-entity
   )
 
 (defonce database-uri
