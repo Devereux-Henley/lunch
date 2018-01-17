@@ -11,8 +11,6 @@
     '[clojure.core.async :refer (<!!)]
     '[datomic.api :as datomic])
 
-  "Create a connection"
-
   (def conn (make-conn))
 
   "Transact requirement schema"
@@ -102,9 +100,12 @@
 
   (:requirement/name requirement-entity)
 
-  (:requirement/priority requirement-entity)
+  (:requirement/children requirement-entity)
 
-  requirement-entity
+  (map :requirement/name (:requirement/children requirement-entity))
+
+  (datomic/touch requirement-entity)
+
   )
 
 (defonce database-uri
