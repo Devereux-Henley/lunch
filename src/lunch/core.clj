@@ -70,8 +70,37 @@
                            {:db/ident :priority/medium}
                            {:db/ident :priority/low}])
 
+  "Database/Transaction functions"
+  @(datomic/transact conn [{:db/ident :requirement/cycle-priority
+                            :db/fn (datomic/function '{:lang :clojure
+                                                       :params [db e]
+                                                       :code
+                                                       [[:db/add
+                                                         e
+                                                         :requirement/priority
+                                                         (let [priority (datomic.api/q
+                                                                          '[:find ?priority .
+                                                                            :in $ ?eid
+                                                                            :where
+                                                                            [?priority-entity :db/ident ?priority]
+                                                                            [?eid :requirement/priority ?priority-entity]]
+                                                                          db e)]
+                                                           (case priority
+                                                             :priority/low    :priority/medium
+                                                             :priority/medium :priority/high
+                                                             :priority/high   :priority/low
+                                                             :priority/low))]]})}])
+
+  "Can target values using either entity id or ident"
+
   @(datomic/transact conn [{:db/id requirement-entity-id
-                            :requirement/priority :priority/high}])
+                            :requirement/priority :priority/high
+                            :requirement/children [{:db/id [:requirement/name "ATG002"]
+                                                    :requirement/priority :priority/low}
+                                                   {:db/id [:requirement/name "ATG003"]
+                                                    :requirement/priority :priority/medium}
+                                                   {:db/id [:requirement/name "ATG004"]
+                                                    :requirement/priority :priority/low}]}])
 
   @(datomic/transact conn [[:db/add [:requirement/name "ATG001"] :requirement/priority :priority/low]])
 
@@ -105,6 +134,17 @@
   (map :requirement/name (:requirement/children requirement-entity))
 
   (datomic/touch requirement-entity)
+
+  "Time travel"
+
+  (def then (java.util.Date.))
+
+  (let [db (datomic/as-of (datomic/db conn) then)]
+    (datomic/pull db [{:requirement/priority [:db/ident]}] requirement-entity-id))
+
+  @(datomic/transact conn [[:requirement/cycle-priority requirement-entity-id]])
+
+  (datomic/pull (datomic/db conn) [{:requirement/priority [:db/ident]}] requirement-entity-id)
 
   )
 
