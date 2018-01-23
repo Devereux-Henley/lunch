@@ -137,14 +137,26 @@
 
   "Time travel"
 
-  (def then (java.util.Date.))
+  (def ye-olden-times (java.util.Date.))
 
-  (let [db (datomic/as-of (datomic/db conn) then)]
+  (let [db (datomic/as-of (datomic/db conn) ye-olden-times)]
     (datomic/pull db [{:requirement/priority [:db/ident]}] requirement-entity-id))
 
   @(datomic/transact conn [[:requirement/cycle-priority requirement-entity-id]])
 
   (datomic/pull (datomic/db conn) [{:requirement/priority [:db/ident]}] requirement-entity-id)
+
+  (sort-by
+    second
+    (datomic/q
+      '[:find ?priority ?inst
+        :in $ ?eid
+        :where
+        [?eid ?a ?v ?tx true]
+        [?tx :db/txInstant ?inst]
+        [?eid :requirement/priority ?priority-eid]
+        [?priority-eid :db/ident ?priority]]
+      (datomic/history (datomic/db conn)) requirement-entity-id))
 
   )
 
