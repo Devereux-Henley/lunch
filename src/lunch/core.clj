@@ -11,6 +11,8 @@
     '[clojure.core.async :refer (<!!)]
     '[datomic.api :as datomic])
 
+  "Create a connection object"
+
   (def conn (make-conn))
 
   "Transact requirement schema"
@@ -53,6 +55,7 @@
       db))
 
   "Attributes are attached to entities, represented by a unique identifier"
+
   (def requirement-entity-id
     (let [db (datomic/db conn)]
       (datomic/q
@@ -61,7 +64,9 @@
           :where [?requirement-entity-id :requirement/name "ATG001"]]
         db)))
 
-  "Graphs support free association"
+  "Graphs support arbitrary association. Here we create a requirement priority and three priority values.
+   The requirement priority can be freely associated, and will later be added to our existing `requirement` entities"
+
   @(datomic/transact conn [{:db/ident :requirement/priority
                             :db/valueType :db.type/ref
                             :db/cardinality :db.cardinality/one
@@ -70,7 +75,9 @@
                            {:db/ident :priority/medium}
                            {:db/ident :priority/low}])
 
-  "Database/Transaction functions"
+  "Datomic supports pure functions in the database. These are transacted like other values, and are collapsed to
+   addition and retract statements."
+
   @(datomic/transact conn [{:db/ident :requirement/cycle-priority
                             :db/fn (datomic/function '{:lang :clojure
                                                        :params [db e]
@@ -139,12 +146,19 @@
 
   (def ye-olden-times (java.util.Date.))
 
+  "`datomic/as-of` provides a snapshot of the database at a given instant, allowing us to query the database as it existed at that time."
+
   (let [db (datomic/as-of (datomic/db conn) ye-olden-times)]
     (datomic/pull db [{:requirement/priority [:db/ident]}] requirement-entity-id))
+
+  "Here we call the transaction function `:requirement/cycle-priority` on our top level requirement."
 
   @(datomic/transact conn [[:requirement/cycle-priority requirement-entity-id]])
 
   (datomic/pull (datomic/db conn) [{:requirement/priority [:db/ident]}] requirement-entity-id)
+
+  "Here we find the priority of every change to a requirement entity and sort by date.
+   This is done by querying a special `history` database that contains the state of every entity at every discrete change."
 
   (sort-by
     second
